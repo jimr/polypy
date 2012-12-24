@@ -5,6 +5,7 @@ release=${1:-"2.6"}
 #sudo apt-get build-dep python2.7
 
 case $release in
+    "pypy") version="pypy-1.9" ;;
     "2.4") version="2.4.6" ;;
     "2.5") version="2.5.6" ;;
     "2.6") version="2.6.8" ;;
@@ -16,13 +17,23 @@ case $release in
     *) echo "unknown version" >&2 && exit 1 ;;
 esac
 
-url="http://www.python.org/ftp/python/$version/Python-${version}.tar.bz2"
-archive=$(echo $url | sed 's#.*/\([^/]*.tar.bz2\)#\1#')
-pydir=$(pwd)/py-$release
-
 [[ ! -d build ]] && mkdir build
 [[ ! -d src ]] && mkdir src
 [[ ! -d venv ]] && mkdir venv
+
+if [[ $release = "pypy" ]]; then
+    if [[ $(uname -m) = "x86_64" ]]; then
+        archive="${version}-linux64.tar.bz2"
+    else
+        archive="${version}-linux.tar.bz2"
+    fi
+    url="https://bitbucket.org/pypy/pypy/downloads/$archive"
+    pydir=$(pwd)/pypy-1.9
+else
+    url="http://www.python.org/ftp/python/$version/Python-${version}.tar.bz2"
+    archive=$(echo $url | sed 's#.*/\([^/]*.tar.bz2\)#\1#')
+    pydir=$(pwd)/py-$release
+fi
 
 if [[ ! -f src/$archive ]]; then
     echo "Can't find $archive locally, downloading."
@@ -41,27 +52,34 @@ if [[ $release = "2.4" ]]; then
 fi
 
 [[ -d $pydir ]] && rm -rf $pydir
-mkdir $pydir
 
-pushd build
 
-rm -rf Python-$version
-tar xjf ../src/$archive
+if [[ $release = "pypy" ]]; then
+    tar xjf src/$archive
+    python="$pydir/bin/pypy"
+else
+    mkdir $pydir
 
-pushd Python-$version
+    pushd build
 
-LDFLAGS="-L/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" ./configure --prefix=$pydir
-sed -i 's/^#_sha256/_sha256/' Modules/Setup
-sed -i 's/^#_sha512/_sha512/' Modules/Setup
-if [[ $release = "2.4" ]]; then
-    sed -i 's/^#zlib/zlib/' Modules/Setup
+    rm -rf Python-$version
+    tar xjf ../src/$archive
+
+    pushd Python-$version
+
+    LDFLAGS="-L/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" ./configure --prefix=$pydir
+    sed -i 's/^#_sha256/_sha256/' Modules/Setup
+    sed -i 's/^#_sha512/_sha512/' Modules/Setup
+    if [[ $release = "2.4" ]]; then
+        sed -i 's/^#zlib/zlib/' Modules/Setup
+    fi
+    make && make install
+
+    popd
+    popd
+
+    python="$pydir/bin/python$release"
 fi
-make && make install
-
-popd
-popd
-
-python="$pydir/bin/python$release"
 
 virtualenv_url="http://pypi.python.org/packages/source/v/virtualenv/${virtualenv}.tar.gz"
 if [[ ! -f src/${virtualenv}.tar.gz ]]; then
@@ -110,5 +128,5 @@ popd
 popd
 
 rm -rf venv/$release
-$pydir/bin/virtualenv-$release --distribute -p $python ./venv/$release
+$pydir/bin/virtualenv --distribute -p $python ./venv/$release
 

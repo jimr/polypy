@@ -5,6 +5,7 @@ release=${1:-"2.6"}
 #sudo apt-get build-dep python2.7
 
 case $release in
+    "2.4") version="2.4.6" ;;
     "2.5") version="2.5.6" ;;
     "2.6") version="2.6.8" ;;
     "2.7") version="2.7.3" ;;
@@ -23,9 +24,6 @@ pydir=$(pwd)/py-$release
 [[ ! -d src ]] && mkdir src
 [[ ! -d venv ]] && mkdir venv
 
-[[ -d $pydir ]] && rm -rf $pydir
-mkdir $pydir
-
 if [[ ! -f src/$archive ]]; then
     echo "Can't find $archive locally, downloading."
     pushd src
@@ -33,9 +31,17 @@ if [[ ! -f src/$archive ]]; then
     popd
 fi
 
-virtualenv="virtualenv-1.8.4"
 distribute="distribute-0.6.32"
 pip="pip-1.2.1"
+virtualenv="virtualenv-1.8.4"
+
+if [[ $release = "2.4" ]]; then
+    pip="pip-1.1"
+    virtualenv="virtualenv-1.7.2"
+fi
+
+[[ -d $pydir ]] && rm -rf $pydir
+mkdir $pydir
 
 pushd build
 
@@ -47,6 +53,9 @@ pushd Python-$version
 LDFLAGS="-L/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" ./configure --prefix=$pydir
 sed -i 's/^#_sha256/_sha256/' Modules/Setup
 sed -i 's/^#_sha512/_sha512/' Modules/Setup
+if [[ $release = "2.4" ]]; then
+    sed -i 's/^#zlib/zlib/' Modules/Setup
+fi
 make && make install
 
 popd

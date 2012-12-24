@@ -2,7 +2,7 @@
 Polypy
 ======
 
-Bootstrap Python 2.5-3.3 environments, complete with ``pip`` & ``distribute`` based virtualenvs.
+Bootstrap Python 2.4-3.3 environments, complete with ``pip`` & ``distribute`` based virtualenvs.
 
 Handy for setting up fresh Python installs for testing with tox_.
 
